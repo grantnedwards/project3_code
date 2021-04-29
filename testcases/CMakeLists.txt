@@ -15,3 +15,6 @@ target_link_libraries(testcase4 sim_cache)
 
 add_executable(testcase5 testcase5.cc)
 target_link_libraries(testcase5 sim_cache)
+
+add_executable(testcase6 testcase6.cc)
+target_link_libraries(testcase6 sim_cache)

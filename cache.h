@@ -30,36 +30,43 @@ typedef struct{
 
 class cache{
 
-    /* Add the data members required by your simulator's implementation here */
-    unsigned num_read, num_write;
-    unsigned num_read_miss, num_write_miss;
-    unsigned num_eviction;
-    unsigned num_ins; // access record
-    unsigned num_hit;
-    unsigned num_mem_write;
-    unsigned size_cache;
-    unsigned way;
-    unsigned set;
-    unsigned block_size;
-    write_policy_t wr_hit;
-    write_policy_t wr_miss;
-    unsigned hittime;
-    unsigned misspenalty;
-    unsigned addr_width;
-    unsigned tag_bits;
-    unsigned index_bits;
-    unsigned blockoffset_bits;
-    unsigned blockoffset_cv;
-    unsigned index_cv;
-    unsigned cache_way;
-
-
     /* number of memory accesses processed */
     unsigned number_memory_accesses;
 
     /* trace file input stream */
     ifstream stream;
 
+    /* cache intermediary parameter holders*/
+    unsigned cache_size;
+    unsigned coeval;
+    unsigned lsize;
+    write_policy_t hit;
+    write_policy_t miss;
+    unsigned hitT;
+    unsigned penalty;
+    unsigned width;
+
+    /* sizing and offsets */
+    unsigned sized;
+    unsigned offset;
+    unsigned indexes;
+    unsigned tags;
+
+    unsigned index_shift;
+    unsigned path;
+
+    /* Add the data members required by your simulator's implementation here */
+    unsigned reads;
+    unsigned rd_miss;
+
+    unsigned writes;
+    unsigned wr_miss;
+
+    unsigned eviction;
+    unsigned access;
+
+    unsigned hits;
+    unsigned memory;
 
 public:
 
