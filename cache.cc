@@ -2,20 +2,16 @@
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
-//#include <string>
 #include <iomanip>
-//#include <vector>
 #include <math.h>
-//#include <algorithm>
-//#include <cstring>
-//#include <stdio.h>
 #include <string.h>
 
 using namespace std;
 
-#define UNDEFINED 0xFFFFFFFFFFFFFFFF //constant used for initialization
+#define UNDEFINED 0xFFFFFFFFFFFFFFFF
+#define START 0x0
 
-vector <vector <cache_entry_t> > cache_table;
+vector <vector <cache_entry_t>> cache_table;
 
 cache::cache(unsigned size,
              unsigned associativity,
@@ -51,7 +47,9 @@ cache::cache(unsigned size,
 
 
     cache_table.resize(associativity);
-    for(unsigned i = START; i < associativity; i++) cache_table[i].resize(set); // shape cache
+    for(unsigned i = START; i < associativity; i++){
+        cache_table[i].resize(set);
+    }
 
     for(unsigned i = START; i < blockoffset_bits; i++){
         blockoffset_cv <<= 1;
@@ -79,18 +77,27 @@ void cache::print_configuration() {
     cout << "associativity = " << way << "-way" <<endl;
     cout << "cache line size = " << block_size << " B" <<endl;
     cout << "write hit policy = ";
-    if(wr_hit == WRITE_BACK) cout << "write-back" <<endl;
-    else cout << "write-through" <<endl;
+
+    if(wr_hit == WRITE_BACK){
+        cout << "write-back" <<endl;
+    }else{
+        cout << "write-through" <<endl;
+    }
+
     cout << "write miss policy = ";
-    if(wr_miss == WRITE_ALLOCATE) cout << "write-allocate" <<endl;
-    else cout << "no-write-allocate" <<endl;
+
+    if(wr_miss == WRITE_ALLOCATE){
+        cout << "write-allocate" <<endl;
+    }else{
+        cout << "no-write-allocate" <<endl;
+    }
+
     cout << "cache hit time = " << hittime << " CLK" <<endl;
     cout << "cache miss penalty = " << misspenalty << " CLK" <<endl;
     cout << "memory address width = " << addr_width << " bits" <<endl;
 }
 
 cache::~cache(){
-    /* edit here */
     num_read = START;
     num_write = START;
     num_read_miss = START;
@@ -110,6 +117,8 @@ void cache::run(unsigned num_entries){
     unsigned first_access = number_memory_accesses;
     string line;
     unsigned line_nr=START;
+    long long index;
+    long long x;
 
     while (getline(stream,line)){
         line_nr++;
@@ -127,7 +136,9 @@ void cache::run(unsigned num_entries){
                     if(wr_hit == WRITE_THROUGH){
                         num_mem_write++;
                     }else{
-                        write_back(cache_way, address);
+                        index = (address >> blockoffset_bits) & index_cv;
+                        x = index % set;
+                        cache_table[cache_way][x].dirty = 1;
                     }
                 }else{
                     num_mem_write ++;
@@ -155,42 +166,34 @@ void cache::run(unsigned num_entries){
     }
 }
 
-void cache::write_back(unsigned i, address_t address) {
-    long long index;
-    long long j;
-    index = (address >> blockoffset_bits) & index_cv;
-    j = index % set;
-    cache_table[i][j].dirty = 1;
-    return;
-}
+
 
 void cache::print_statistics() {
-    float miss_rate;
-    float average_mem_access_time;
-    miss_rate = (float(num_read_miss) + float(num_write_miss)) / (number_memory_accesses);
-    average_mem_access_time = float(hittime + miss_rate * misspenalty);
-    cout << "STATISTICS" <<endl;
-    cout << "memory accesses = " << dec << number_memory_accesses <<endl;
-    cout << "read = " << num_read <<endl;
-    cout << "read misses = " << num_read_miss <<endl;
-    cout << "write = " << num_write <<endl;
-    cout << "write misses = " << num_write_miss <<endl;
-    cout << "evictions = " << num_eviction <<endl;
-    cout << "memory writes = " << dec << num_mem_write <<endl;
-    cout << "average memory access time = " << average_mem_access_time <<endl;
+    cout << "STATISTICS" << endl;
+    cout << "memory accesses = " << dec << number_memory_accesses << endl;
+    cout << "read = " << num_read << endl;
+    cout << "read misses = " << num_read_miss << endl;
+    cout << "write = " << num_write << endl;
+    cout << "write misses = " << num_write_miss << endl;
+    cout << "evictions = " << num_eviction << endl;
+    cout << "memory writes = " << dec << num_mem_write << endl;
+    cout << "average memory access time = " << float(misspenalty * ((float(num_read_miss) + float(num_write_miss)) / (number_memory_accesses)) + hittime) << endl;
 }
 
 
 access_type_t cache::read(address_t address){
-    long long tag;
     long long index;
-    long long j;
-    tag = address >> (blockoffset_bits + index_bits);
+    long long tag;
+    long long x;
+
     index = (address >> blockoffset_bits) & index_cv;
-    j = index % set;
+    x = index % set;
+    tag = address >> (blockoffset_bits + index_bits);
+
+
     for (unsigned i = START; i < way; i++) {
-        if (cache_table[i][j].tag == tag && cache_table[i][j].valid == 1) {
-            cache_table[i][j].access_record = num_ins;
+        if ((cache_table[i][x].valid) && (cache_table[i][x].tag == tag)) {
+            cache_table[i][x].access_record = num_ins;
             return HIT;
         }
     }
@@ -198,16 +201,20 @@ access_type_t cache::read(address_t address){
 }
 
 access_type_t cache::write(address_t address){
-    long long tag;
     long long index;
-    long long j;
-    tag = address >> (blockoffset_bits + index_bits);
+    long long tag;
+    long long x;
+
     index = (address >> blockoffset_bits) & index_cv;
-    j = index % set;
+    x = index % set;
+    tag = address >> (blockoffset_bits + index_bits);
+
     for (unsigned i = START; i < way; i++) {
-        if (cache_table[i][j].tag == tag && cache_table[i][j].valid == 1) {
-            if(wr_hit == WRITE_BACK) cache_table[i][j].dirty = 1;
-            cache_table[i][j].access_record = num_ins;
+        if ((cache_table[i][x].valid) && (cache_table[i][x].tag == tag)) {
+            if(wr_hit == WRITE_BACK){
+                cache_table[i][x].dirty = 1;
+            }
+            cache_table[i][x].access_record = num_ins;
             return HIT;
         }
     }
@@ -215,37 +222,36 @@ access_type_t cache::write(address_t address){
 }
 
 void cache::print_tag_array(){
+
     cout << "TAG ARRAY" << endl;
     for (unsigned i = START; i < way; i++) {
         cout << "BLOCKS " << i << endl;
-        if (wr_hit == WRITE_BACK) {
-            cout << setfill(' ') << setw(7) << "index" << setw(6) << "dirty" << setw(4 + tag_bits/4) << "tag" <<endl;
-            for (unsigned k = START; k < set; k++) {
-                if (cache_table[i][k].valid == 1) {
-                    cout << setfill(' ') << setw(7) << dec << cache_table[i][k].index << setw(6) << dec << cache_table[i][k].dirty << setw(4) << "0x" << hex << cache_table[i][k].tag <<endl;
-                }
-            }
 
-        }
-        else {
+        if (wr_hit != WRITE_BACK) {
             cout << setfill(' ') << setw(7) << "index" << setw(6) << setw(4 + tag_bits/4) << "tag" <<endl;
             for (unsigned j = START; j < set; j++) {
                 if (cache_table[i][j].valid == 1) {
                     cout << setfill(' ') << setw(7) << dec << cache_table[i][j].index << setw(4) << "0x" << hex << cache_table[i][j].tag <<endl;
                 }
             }
+
+        }else{
+            cout << setfill(' ') << setw(7) << "index" << setw(6) << "dirty" << setw(4 + tag_bits/4) << "tag" <<endl;
+            for (unsigned k = START; k < set; k++) {
+                if (cache_table[i][k].valid == 1) {
+                    cout << setfill(' ') << setw(7) << dec << cache_table[i][k].index << setw(6) << dec << cache_table[i][k].dirty << setw(4) << "0x" << hex << cache_table[i][k].tag <<endl;
+                }
+            }
         }
-
     }
-
 }
 
-unsigned cache::evict(long long j) {
-    unsigned record = num_ins;
+unsigned cache::evict(long long index) {
     unsigned lru_way = START;
+    unsigned record = num_ins;
     for (unsigned i = START; i < way; i++) {
-        if (cache_table[i][j].access_record <= record) {
-            record = cache_table[i][j].access_record;
+        if (record >= cache_table[i][index].access_record) {
+            record = cache_table[i][index].access_record;
             lru_way = i;
         }
     }
@@ -253,29 +259,37 @@ unsigned cache::evict(long long j) {
 }
 
 unsigned cache::allocate(address_t address) {
-    long long tag;
     long long index;
+    long long tag;
     long long j;
-    tag = address >> (blockoffset_bits + index_bits);
+
     index = (address >> blockoffset_bits) & index_cv;
     j = index % set;
+    tag = address >> (index_bits+blockoffset_bits);
+
+
     for (unsigned i = START; i < way; i++) {
         if (cache_table[i][j].valid == START) {
-            cache_table[i][j].valid = 1;
-            cache_table[i][j].tag = tag;
-            cache_table[i][j].index = index;
             cache_table[i][j].access_record = num_ins;
+            cache_table[i][j].tag = tag;
+            cache_table[i][j].valid = 1;
+            cache_table[i][j].index = index;
             return i;
         }
     }
     num_eviction ++;
+
     unsigned evict_way = evict(j);
+
     if (cache_table[evict_way][j].dirty == 1) {
-        num_mem_write ++;
         cache_table[evict_way][j].dirty = START;
+        num_mem_write ++;
     }
-    cache_table[evict_way][j].tag = tag;
+
     cache_table[evict_way][j].index = index;
     cache_table[evict_way][j].access_record = num_ins;
+    cache_table[evict_way][j].tag = tag;
+
     return evict_way;
 }
+

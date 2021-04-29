@@ -86,12 +86,6 @@ public:
     // if "num_memory_accesses=0" (default), then it processes the trace to completion
     void run(unsigned num_memory_accesses=0);
 
-    unsigned cache_allo(address_t address);
-
-    //unsigned LRU(long long index);
-
-    void write_back(unsigned i, address_t address);
-
     // processes a read operation and returns hit/miss
     access_type_t read(address_t address);
 
