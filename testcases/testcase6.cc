@@ -15,16 +15,16 @@ int main(int argc, char **argv){
 
     cache *mycache = NULL;
 
-    for (unsigned n=1; n<=32; n=n*2){
+    for (unsigned n=16; n<=256; n=n*2){
 
         cout << "ASSOCIATIVITY = " << dec << n << endl;
-        cout << "===================" << endl << endl;
+        cout << "===================";//<< endl << endl;
 
-        mycache = new cache(     32*KB,			//size
-                                 n,			//associativity
-                                 16,			//cache line size
-                                 WRITE_BACK,		//write hit policy
-                                 WRITE_ALLOCATE, 	//write miss policy
+        mycache = new cache(     n*KB,			//size
+                                 1,			//associativity
+                                 64,			//cache line size
+                                 WRITE_THROUGH,		//write hit policy
+                                 NO_WRITE_ALLOCATE, 	//write miss policy
                                  5, 			//hit time
                                  100, 			//miss penalty
                                  48    		//address width

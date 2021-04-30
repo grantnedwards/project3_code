@@ -1,7 +1,6 @@
 #include "cache.h"
 #include <stdlib.h>
 #include <iostream>
-#include <fstream>
 #include <iomanip>
 #include <math.h>
 #include <string.h>
@@ -11,7 +10,7 @@ using namespace std;
 #define UNDEFINED 0xFFFFFFFFFFFFFFFF
 #define START 0x0
 
-vector <vector <cache_entry_t>> cache_table;
+vector <vector <cachee_t>> table;
 
 cache::cache(unsigned size,
              unsigned associativity,
@@ -48,12 +47,13 @@ cache::cache(unsigned size,
     memory = START;
 
     number_memory_accesses = START;
-    cache_table.clear();
+    table.clear();
+    table.resize(associativity);
+    // initialize associativity
 
 
-    cache_table.resize(associativity);
     for(unsigned i = START; i < associativity; i++){
-        cache_table[i].resize(sized);
+        table[i].resize(sized);
     }
 
     for(unsigned i = START; i < indexes; i++){
@@ -62,11 +62,11 @@ cache::cache(unsigned size,
     }
     for(unsigned i = START; i < associativity; i++) {
         for(unsigned j = START; j < offset; j++){
-            cache_table[i][j].valid = START;
-            cache_table[i][j].dirty = START;
-            cache_table[i][j].tag = START;
-            cache_table[i][j].index = START;
-            cache_table[i][j].access_record = START;
+            table[i][j].valid = START;
+            table[i][j].dirty = START;
+            table[i][j].tag = START;
+            table[i][j].index = START;
+            table[i][j].access_record = START;
         }
     }
 }
@@ -99,15 +99,15 @@ void cache::print_configuration() {
 }
 
 cache::~cache(){
-    reads = START;
-    writes = START;
-    rd_miss = START;
-    wr_miss = START;
+    table.clear();
     eviction = START;
     access = START;
+    reads = START;
+    rd_miss = START;
+    writes = START;
+    wr_miss = START;
     hits = START;
     number_memory_accesses = START;
-    cache_table.clear();
 }
 
 void cache::load_trace(const char *filename){
@@ -139,7 +139,7 @@ void cache::run(unsigned num_entries){
                     }else{
                         index = (address >> offset) & index_shift;
                         x = index % sized;
-                        cache_table[path][x].dirty = 1;
+                        table[path][x].dirty = 1;
                     }
                 }else{
                     memory++;
@@ -163,6 +163,7 @@ void cache::run(unsigned num_entries){
 
         access++;
         number_memory_accesses++;
+
         if ((num_entries!=0) && (number_memory_accesses - first_access) == num_entries) break;
     }
 }
@@ -193,8 +194,8 @@ access_type_t cache::read(address_t address){
 
 
     for (unsigned i = START; i < coeval; i++) {
-        if ((cache_table[i][x].valid) && (cache_table[i][x].tag == tag)) {
-            cache_table[i][x].access_record = access;
+        if ((table[i][x].valid) && (table[i][x].tag == tag)) {
+            table[i][x].access_record = access;
             return HIT;
         }
     }
@@ -211,11 +212,11 @@ access_type_t cache::write(address_t address){
     tag = address >> (offset + indexes);
 
     for (unsigned i = START; i < coeval; i++) {
-        if ((cache_table[i][x].valid) && (cache_table[i][x].tag == tag)) {
+        if ((table[i][x].valid) && (table[i][x].tag == tag)) {
             if(hit == WRITE_BACK){
-                cache_table[i][x].dirty = 1;
+                table[i][x].dirty = 1;
             }
-            cache_table[i][x].access_record = access;
+            table[i][x].access_record = access;
             return HIT;
         }
     }
@@ -231,16 +232,16 @@ void cache::print_tag_array(){
         if (hit != WRITE_BACK) {
             cout << setfill(' ') << setw(7) << "index" << setw(6) << setw(4 + tags/4) << "tag" <<endl;
             for (unsigned j = START; j < sized; j++) {
-                if (cache_table[i][j].valid == 1) {
-                    cout << setfill(' ') << setw(7) << dec << cache_table[i][j].index << setw(4) << "0x" << hex << cache_table[i][j].tag <<endl;
+                if (table[i][j].valid == 1) {
+                    cout << setfill(' ') << setw(7) << dec << table[i][j].index << setw(4) << "0x" << hex << table[i][j].tag <<endl;
                 }
             }
 
         }else{
             cout << setfill(' ') << setw(7) << "index" << setw(6) << "dirty" << setw(4 + tags/4) << "tag" <<endl;
             for (unsigned k = START; k < sized; k++) {
-                if (cache_table[i][k].valid == 1) {
-                    cout << setfill(' ') << setw(7) << dec << cache_table[i][k].index << setw(6) << dec << cache_table[i][k].dirty << setw(4) << "0x" << hex << cache_table[i][k].tag <<endl;
+                if (table[i][k].valid == 1) {
+                    cout << setfill(' ') << setw(7) << dec << table[i][k].index << setw(6) << dec << table[i][k].dirty << setw(4) << "0x" << hex << table[i][k].tag <<endl;
                 }
             }
         }
@@ -252,9 +253,9 @@ unsigned cache::evict(long long index) {
     unsigned record = access;
 
     for (unsigned i = START; i < coeval; i++) {
-        if (record >= cache_table[i][index].access_record) {
+        if (record >= table[i][index].access_record) {
             least = i;
-            record = cache_table[i][index].access_record;
+            record = table[i][index].access_record;
         }
     }
     return least;
@@ -273,26 +274,26 @@ unsigned cache::allocate(address_t address) {
 
 
     for (unsigned i = START; i < coeval; i++) {
-        if (cache_table[i][j].valid == START) {
-            cache_table[i][j].access_record = access;
-            cache_table[i][j].tag = tag;
+        if (table[i][j].valid == START) {
+            table[i][j].access_record = access;
+            table[i][j].tag = tag;
 
-            cache_table[i][j].valid = 1;
-            cache_table[i][j].index = index;
+            table[i][j].valid = 1;
+            table[i][j].index = index;
 
             return i;
         }
     }
     eviction++;
-    if (cache_table[evicter][j].dirty == 1) {
-        cache_table[evicter][j].dirty = START;
+    if (table[evicter][j].dirty == 1) {
+        table[evicter][j].dirty = START;
         memory++;
     }
 
-    cache_table[evicter][j].index = index;
-    cache_table[evicter][j].access_record = access;
+    table[evicter][j].index = index;
+    table[evicter][j].access_record = access;
 
-    cache_table[evicter][j].tag = tag;
+    table[evicter][j].tag = tag;
 
     return evicter;
 }

@@ -21,12 +21,12 @@ typedef enum {HIT, MISS} access_type_t;
 typedef long long address_t; //memory address type
 
 typedef struct{
-    unsigned valid; //valid bit
-    unsigned dirty; //dirty bit
-    long long tag; //tag
-    long long index; //index
-    unsigned access_record; //record access time, for LRU
-} cache_entry_t;
+    long long index;
+    long long tag;
+    unsigned valid;
+    unsigned dirty;
+    unsigned access_record;
+} cachee_t;
 
 class cache{
 
